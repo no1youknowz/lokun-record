@@ -21,6 +21,7 @@ Python packages needed
  * `webtest`
  * `netaddr`
  * `fdfgen`
+ * `pyzmq`
 
 Dependencies from apt:
 -----------------------------

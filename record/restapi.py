@@ -24,6 +24,14 @@ from common.logger import Logger
 from dalpay import DalPay
 from status import StatusState
 from model import NotEnoughFundsError
+from mq import NodeBackboneRequest
+
+@get("/test")
+def test():
+    mq = NodeBackboneRequest.get()
+    mq.send("vpn0 1.1.1.1 0")
+
+    return "lol"
 
 logger = Logger("record")
 def log(msg):
