@@ -97,7 +97,7 @@ class Node(object):
 
     @classmethod
     def auth(cls, name, key):
-        apikey = APIKey.auth(key, name=name)
+        APIKey.auth(key, name=name)
         node = cls.get(name)
         if not node:
             raise ValueError("Not a VPN server")
@@ -158,7 +158,7 @@ class Node(object):
         if not self.max_throughput:
             return False
         else:
-            return self.total_throughput > self.throughput_limit
+            return self.total_throughput >= self.throughput_limit
 
     @property
     def score(self):
@@ -522,7 +522,7 @@ class User(object):
             invkey = InviteKey(invkey)
             if invkey.promo_key:
                 newuser.dl_left = SUB_DL_BYTES
-                newuser.sub_end = "2013-09-14"
+                newuser.sub_end = "2015-02-03"
             else:
                 invkey.use()
         newuser.mkkeys()
@@ -582,7 +582,7 @@ class InviteKey(object):
 
     @property
     def promo_key(self):
-        return self.key in ["FBLOKUN", "VAKTINLOKUN", "RICELAND"]
+        return self.key in ["FOSDEM2015"]
 
 class BTCPrices(object):
     def __init__(self, price):
@@ -607,7 +607,7 @@ class BTCAddr(object):
         self.usertag = usertag
 
     @classmethod
-    def save(cls):
+    def save(self):
         DB.get().save_btcaddrs(self.addr, self.usertag)
 
     @classmethod

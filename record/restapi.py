@@ -1,24 +1,17 @@
 #! /usr/bin/env python2
 # coding: utf8
-import os
 import json
-import time 
-from math import ceil
 from pprint import pformat
 
 import bottle
-from bottle import route, request, response, put, post, get, HTTPError, hook
-from bottle import run, app, static_file, redirect
-from random import shuffle, sample
-from datetime import datetime
+from bottle import route, request, response, put, post, get, hook
+from bottle import run, static_file, redirect
+
 import hashlib
 
 import config
 import model
 import exchanges
-import requests
-import hashing
-import encryption
 import sec
 from common.logger import Logger
 from dalpay import DalPay
@@ -69,7 +62,7 @@ def key_auth(name=""):
         abort(401, "Must include a secret")
     try:
         return model.APIKey.auth(request.forms['secret'], name=name)
-    except ValueError as e:
+    except ValueError:
         abort(403, "Secret not accepted")    
 
 # ------------
@@ -96,6 +89,9 @@ def putuser(name):
                                   request.forms.invite_key,
                                   email=request.forms.email)
             log("Created a new user")
+            # temporarily added for fun and profit
+            if request.forms.invite_key == "FOSDEM2015":
+                logger.email("FOSDEM user registered")
         except ValueError as e:
             errstatus(e)
             log(str(e))
@@ -257,6 +253,7 @@ def postnode(name):
                     total_throughput = int(request.forms.total_throughput),
                     uptime = request.forms.uptime,
                     cpu = float(request.forms['cpu']))
+        log("Updated {0}".format(node.name))
         
         if node.within_limit and old_total < node.throughput_limit:
             message = "throughput_limit: {0}, {1} GB\n\n{2}"
@@ -293,7 +290,7 @@ def putnode(name):
             max_t = int(request.forms.max_throughput or 0)
             node = model.Node.new(name, request.forms["ip"], is_exit, max_t)
             apikey = model.APIKey.new(name, status="new")
-            log("Created a new node. API key status set to 'new'")
+            log("Created a new node: {0}. API key status set to 'new'".format(name))
             return dict({'secret': apikey.key}, **dict(node))
         except ValueError as e:
             errstatus(e)
@@ -319,7 +316,6 @@ def getexit(name):
 # ---------------
 # /lokun/
 # ---------------
-
 @get('/lokun/loadbalancer')
 def loadbalancer():
     try:
@@ -355,6 +351,16 @@ def status():
     state = StatusState.check()
     return {'status': state.status,
             'systems': state.systems}
+
+@post('/lokun/rrdgraph/<name>_graph.png')
+def rrdgraph(name):
+    key_auth()
+    # bottle handles 404 automatically
+    return static_file(name + '_graph.png',
+                       root=config.rrdroot,
+                       mimetype='image/png')
+
+
 # -----------------
 # /callbacks
 # -----------------
@@ -382,8 +388,8 @@ def dalpay():
         cardtype = request.forms["pay_type"]
         fees = calculate_fees(cardtype, dalpay.amount)
 
-        deposit = model.Deposit.new(dalpay.username, dalpay.amount, cardtype,
-                                    vsk=25.5, fees=fees, deposit=True)
+        model.Deposit.new(dalpay.username, dalpay.amount, cardtype,
+                          vsk=25.5, fees=fees, deposit=True)
 
         logger.email("DalPay: {0},{1}".format(dalpay.username, dalpay.amount))
 
@@ -424,7 +430,6 @@ def bitcoinmonitor():
         log("signatures do not match")
         abort(403, "Unahtorized")
 
-    db = model.DB.get()
     b = model.BTCAddr.get(f['signed_data']['address'])
     if not b:
         abort(400, "Invalid") 

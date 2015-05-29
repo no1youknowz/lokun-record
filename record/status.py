@@ -4,13 +4,17 @@ import socket
 
 from requests import get as httpget
 
-"""This seemed like a good idea at the time..."""
+statusfile = "/srv/log/statusfile.txt"
 
+"""This seemed like a good idea at the time..."""
 class Status(str):
     statusmap = {'green': 0, 'yellow': 1, 'red': 2}
 
     def __eq__(self, other):
-        return self.statusmap[str(self)] == self.statusmap[str(other)]
+        try:
+            return self.statusmap[str(self)] == self.statusmap[str(other)]
+        except KeyError:
+            return False
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -35,12 +39,13 @@ class Status(str):
 
 
 class StatusState(object):
-    def __init__(self, status, description=[], systems={}):
+    def __init__(self, status, description=[], systems={}, age=0):
         self.status = Status(status)
         if type(description) == str:
             description = [description]
         self.description = description
         self.systems = systems
+        self.age = age
 
     @property
     def name(self):
@@ -56,8 +61,27 @@ class StatusState(object):
         status = max(c.status for c in checks)
         desc = reduce(lambda x, y: x+y, [a.description for a in checks])
         systems = {c.name: c.status for c in checks}
-        return cls(status, desc, systems)
+        age = cls.get_status_age()
+        return cls(status, desc, systems, age)
 
+    # will fail on IOError, trust cron to deliver error
+    @property
+    def changed(self):
+        with open(statusfile, 'r') as f:
+            savedstatus = f.read().strip().split(":")[0][:]
+            return savedstatus != self.status
+        
+    def save(self):
+        self.age += 1
+        with open(statusfile, 'w') as f:
+            f.write(str(self.status) + ":" + str(self.age))
+            
+    def get_status_age():
+        with open(statusfile, 'r') as f:
+            contents = f.read()
+            return int(contents.strip().split(":")[1])
+
+            
 class WWWErrors(StatusState):
     @classmethod
     def check(cls):
